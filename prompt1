@@ -1,0 +1,228 @@
+**Prompt:**
+
+
+
+Build me a personal schedule planner as a **single self-contained HTML file** (no frameworks, no external dependencies, pure vanilla JS + inline CSS). It should work by opening the file directly in a browser.
+
+
+
+---
+
+
+
+**Overall feel**
+
+Dark theme (`#111` background), monospace/clean aesthetic, feels like a personal dashboard rather than a generic calendar. Compact but readable.
+
+
+
+---
+
+
+
+**Two views, toggled by buttons at the top:**
+
+
+
+1. **Mobile view** — vertical list of day tiles, one per row. Each tile shows: day-of-week abbreviation, date number, and a short note. Tiles are colour-coded by day type. Tapping a tile expands it to show action buttons (e.g. "Open booking", "Copy details").
+
+
+
+2. **Desktop view** — traditional monthly calendar grid (Mon–Sun columns), multiple months shown side by side. Tiles are slightly larger with room for a short note label inside. Both views share the same data and colour logic.
+
+
+
+---
+
+
+
+**Day types and colours** — define a lookup table `T` mapping type keys to `[bgColour, textColour, legendLabel]`. Suggested starting set:
+
+
+
+| Key | Suggested colour | Meaning |
+
+|---|---|---|
+
+| `office` | dark blue | In the office |
+
+| `londonOff` | light blue | In city, not working |
+
+| `wfh` | dark green | Working from home |
+
+| `homeOff` | light green | Home, not working |
+
+| `travel` | amber/yellow | Travel day |
+
+| `workAbroad` | dark orange | Working abroad |
+
+| `abroad` | light orange | Abroad, not working |
+
+| `bankHol` | pale yellow | Bank holiday |
+
+| `greyOff` | grey | Pre-schedule / gap |
+
+
+
+The user will tell you which day types apply to their life — rename and adjust freely.
+
+
+
+---
+
+
+
+**Schedule data**
+
+Hardcode the schedule as a JS array `D` of rows:
+
+
+
+["MonthName", dayNumber, "DayOfWeek", "typeKey", "Optional note"]
+
+
+
+
+
+
+
+Example:
+
+
+
+["Jun", 3, "Wed", "travel", "Train to Amsterdam"],
+["Jun", 4, "Thu", "workAbroad", "Work NL"],
+["Jun", 7, "Sun", "abroad", "Weekend NL"],
+
+
+
+
+
+
+
+Cover every calendar day in the schedule range (even blank grey days). The month name is a short string like `"May"`, `"Jun"`.
+
+
+
+---
+
+
+
+**Bookings system**
+
+Maintain a separate `BOOKINGS` array for confirmed travel:
+
+
+
+{
+  id: "booking-jun-3",
+  schedKey: "Jun-3",          // matches Month-day
+  date: "Wed 3 Jun 2026",
+  from: "London St Pancras",
+  to: "Amsterdam Central",
+  depart: "11:04", arrive: "16:20",
+  duration: "4h 16m",
+  changes: "Direct",
+  operator: "Eurostar",
+  ticket: "Standard",
+  mode: "train",              // "train" | "plane"
+  dir: "north"|"south"|"international",
+  ref: "ABC123",
+  seats: "Coach 4 · Seat 22",
+  physical: false,            // true = physical ticket, needs collecting
+  collectRef: ""              // station collection reference if physical
+}
+
+
+
+Build a `BMAP` lookup: `{ "Jun-3": bookingObject }`. Render all confirmed bookings as cards at the bottom of the page, showing all details. Clicking a booked travel tile scrolls to its card and briefly highlights it.
+
+
+
+---
+
+
+
+**Icons on travel tiles**
+
+On confirmed travel tiles, show a small yellow pill badge (bottom-right on desktop, inside the date square on mobile) containing:
+
+- A train SVG icon OR ✈ plane symbol
+
+- A direction arrow: ▲ north, ▼ south, ▶ international
+
+
+
+Only show icons when a booking is confirmed — never guess from note text.
+
+
+
+For physical tickets: keep the badge but show `! [icon] [arrow]` in red/yellow, and display a red warning in the booking detail card ("Physical ticket — collect at station before travel, ref: XXXXX").
+
+
+
+---
+
+
+
+**Unbooked travel warning**
+
+Dynamically compute which travel days within the next 2 months have no booking. Show a red `!` badge on those tiles. Auto-prepend a todo item for each: "⚠️ Book travel — [day] [date] [month]".
+
+
+
+---
+
+
+
+**To-do list**
+
+Show a static todo list below the calendar (the user provides items). Auto-generated unbooked-travel todos appear at the top.
+
+
+
+---
+
+
+
+**Legend**
+
+Show a small colour key above the calendar listing each named day type with its colour swatch. Also show a mini icon legend for the travel badges (train ▲, plane ▼, ! not booked, etc.).
+
+
+
+**Colour legend is auto-generated** from the `T` table — only show entries where the label string is non-empty.
+
+
+
+---
+
+
+
+**Other details**
+
+- Scroll to today on load (highlight today's tile with a subtle ring)
+
+- Past days rendered at reduced opacity (~40%)
+
+- No external fonts, no CDN links — everything inline
+
+- The file should be completely self-contained and openable offline
+
+- At the top, show a small header with the user's name/title and a "last updated" date
+
+
+
+---
+
+
+
+**To get started, ask me:**
+
+1. What date range should the schedule cover?
+
+2. What are your day types (office, WFH, travel, etc.) and what should each be called?
+
+3. Do you have any confirmed bookings to add?
+
+4. What todos do you want in the list?
