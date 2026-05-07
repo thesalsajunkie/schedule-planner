@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Personal Schedule Planner</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#111;color:#ccc;font-family:'Courier New',Courier,monospace;font-size:13px;min-height:100vh;padding-bottom:60px}
+
+/* Header */
+#hdr{display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid #2a2a2a;background:#0d0d0d}
+#hdr-name{font-size:16px;font-weight:bold;color:#e0e0e0;letter-spacing:1px}
+#hdr-updated{font-size:11px;color:#555}
+
+/* Legend */
+#legend{padding:12px 20px;display:flex;flex-wrap:wrap;gap:8px 14px;border-bottom:1px solid #1e1e1e;background:#0f0f0f;align-items:center}
+.leg-item{display:flex;align-items:center;gap:5px;font-size:11px}
+.leg-swatch{width:12px;height:12px;border-radius:2px;flex-shrink:0}
+.leg-icon{display:flex;align-items:center;gap:3px;font-size:11px;padding:1px 5px;border:1px solid #333;border-radius:3px}
+
+/* View toggle */
+#view-toggle{display:flex;gap:0;padding:12px 20px 0;border-bottom:1px solid #1e1e1e}
+.vbtn{background:#1a1a1a;border:1px solid #333;color:#777;cursor:pointer;font-family:inherit;font-size:12px;padding:6px 18px;transition:all .2s}
+.vbtn:first-child{border-radius:4px 0 0 4px}
+.vbtn:last-child{border-radius:0 4px 4px 0;border-left:none}
+.vbtn.active{background:#2a2a2a;color:#e0e0e0;border-color:#444}
+
+/* Unbooked warnings */
+#warnings{padding:10px 20px;display:none}
+.warn-banner{background:#2a0000;border:1px solid #660000;border-radius:4px;padding:8px 12px;color:#ff6666;font-size:12px;margin-bottom:4px}
+.warn-banner a{color:#ff9999;cursor:pointer;text-decoration:underline}
+
+/* ===== MOBILE VIEW ===== */
+#mobile-view{padding:12px 20px;display:flex;flex-direction:column;gap:4px}
+.month-label-m{font-size:12px;font-weight:bold;color:#666;letter-spacing:2px;text-transform:uppercase;padding:8px 0 4px;border-top:1px solid #1e1e1e;margin-top:4px}
+.month-label-m:first-child{border-top:none;margin-top:0}
+
+.m-tile{display:flex;align-items:center;gap:0;border-radius:4px;overflow:hidden;cursor:pointer;transition:opacity .2s;position:relative}
+.m-tile.past{opacity:.4}
+.m-tile.today{outline:2px solid #e0e0e0;outline-offset:-1px;opacity:1!important}
+.m-tile-date{width:52px;flex-shrink:0;padding:7px 8px;display:flex;flex-direction:column;align-items:center;line-height:1.1}
+.m-tile-dow{font-size:10px;opacity:.8}
+.m-tile-day{font-size:18px;font-weight:bold}
+.m-tile-badge{position:absolute;left:34px;bottom:3px;font-size:9px;border-radius:3px;padding:1px 4px;display:flex;align-items:center;gap:2px;font-weight:bold;z-index:2}
+.m-tile-badge.booked{background:#1a1a00;color:#f0c040;border:1px solid #665500}
+.m-tile-badge.unbooked{background:#2a0000;color:#ff4444;border:1px solid #660000}
+.m-tile-note{flex:1;padding:7px 10px;font-size:12px;opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.m-tile-expand{background:#0d0d0d;border-top:1px solid rgba(255,255,255,.05);padding:8px 12px;display:none;flex-direction:column;gap:6px}
+.m-tile.expanded .m-tile-expand{display:flex}
+.m-tile-actions{display:flex;gap:8px;flex-wrap:wrap}
+.m-action-btn{background:#1e1e1e;border:1px solid #333;border-radius:3px;color:#aaa;cursor:pointer;font-family:inherit;font-size:11px;padding:4px 10px;transition:background .15s}
+.m-action-btn:hover{background:#2a2a2a;color:#e0e0e0}
+.m-tile-expand-note{font-size:11px;color:#888}
+
+/* ===== DESKTOP VIEW ===== */
+#desktop-view{padding:16px 20px;display:none}
+.month-block{margin-bottom:20px}
+.month-label-d{font-size:13px;font-weight:bold;color:#888;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid #1e1e1e}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.cal-dow-header{text-align:center;padding:4px;font-size:10px;color:#555;font-weight:bold;letter-spacing:1px}
+.cal-empty{background:#0d0d0d;border-radius:3px;min-height:56px}
+.d-tile{border-radius:3px;min-height:56px;padding:5px 6px;cursor:pointer;position:relative;overflow:hidden;transition:opacity .2s}
+.d-tile.past{opacity:.4}
+.d-tile.today{outline:2px solid #e0e0e0;outline-offset:-1px;opacity:1!important}
+.d-tile-day{font-size:15px;font-weight:bold;line-height:1}
+.d-tile-note{font-size:10px;margin-top:3px;opacity:.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.d-tile-badge{position:absolute;right:4px;bottom:4px;font-size:9px;border-radius:3px;padding:1px 4px;display:flex;align-items:center;gap:2px;font-weight:bold}
+.d-tile-badge.booked{background:#1a1a00;color:#f0c040;border:1px solid #665500}
+.d-tile-badge.unbooked{background:#2a0000;color:#ff4444;border:1px solid #660000}
+
+/* Multi-month desktop layout */
+.months-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px}
+
+/* ===== TODO LIST ===== */
+#todos-section{padding:16px 20px;border-top:1px solid #1e1e1e}
+#todos-title{font-size:12px;font-weight:bold;color:#666;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px}
+.todo-item{display:flex;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px solid #161616;font-size:12px;color:#aaa}
+.todo-item.urgent{color:#ff8888}
+.todo-cb{cursor:pointer;flex-shrink:0;accent-color:#444;margin-top:1px}
+.todo-item.done .todo-text{text-decoration:line-through;opacity:.5}
+
+/* ===== BOOKING CARDS ===== */
+#bookings-section{padding:16px 20px;border-top:1px solid #1e1e1e}
+#bookings-title{font-size:12px;font-weight:bold;color:#666;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px}
+.booking-card{border:1px solid #2a2a2a;border-radius:5px;padding:12px 14px;margin-bottom:10px;background:#0f0f0f;transition:border-color .3s}
+.booking-card.highlight{border-color:#f0c040;animation:blink-border .8s ease}
+@keyframes blink-border{0%,100%{border-color:#f0c040}50%{border-color:#ff8800}}
+.bc-header{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px}
+.bc-route{font-size:14px;font-weight:bold;color:#e0e0e0}
+.bc-date{font-size:11px;color:#666}
+.bc-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 16px;font-size:11px}
+.bc-row{display:flex;gap:6px}
+.bc-label{color:#555;min-width:70px;flex-shrink:0}
+.bc-val{color:#bbb}
+.bc-ref{font-size:12px;margin-top:8px;padding-top:8px;border-top:1px solid #1e1e1e;color:#888}
+.bc-ref span{color:#ccc;font-weight:bold}
+.bc-warn{margin-top:8px;padding:6px 10px;background:#2a0000;border:1px solid #660000;border-radius:3px;color:#ff6666;font-size:11px}
+.bc-physical-badge{display:inline-flex;align-items:center;gap:4px;background:#2a0000;border:1px solid #660000;border-radius:3px;padding:2px 6px;font-size:10px;color:#ff6666;margin-left:6px}
+
+/* SVG icons */
+.icon-train{display:inline-block;vertical-align:middle}
+.icon-plane{display:inline-block;vertical-align:middle;font-size:11px}
+
+/* Scroll anchor */
+#today-anchor{scroll-margin-top:20px}
+</style>
+</head>
+<body>
+
+<div id="hdr">
+  <div id="hdr-name">&#9632; Personal Schedule Planner</div>
+  <div id="hdr-updated">Last updated: 6 May 2026</div>
+</div>
+
+<div id="legend"></div>
+
+<div id="view-toggle">
+  <button class="vbtn active" id="btn-mobile" onclick="setView('mobile')">Mobile</button>
+  <button class="vbtn" id="btn-desktop" onclick="setView('desktop')">Desktop</button>
+</div>
+
+<div id="warnings"></div>
+<div id="mobile-view"></div>
+<div id="desktop-view"></div>
+<div id="todos-section">
+  <div id="todos-title">To-Do</div>
+  <div id="todos-list"></div>
+</div>
+<div id="bookings-section">
+  <div id="bookings-title">Confirmed Bookings</div>
+  <div id="bookings-list"></div>
+</div>
+
+<script>
+// ─── Day type table ────────────────────────────────────────────────────────
+const T = {
+  office:     { bg: '#1a2e4a', fg: '#6ab0f5', label: 'Office' },
+  londonOff:  { bg: '#1a3d5c', fg: '#8cc8e8', label: 'London, not working' },
+  wfh:        { bg: '#1a3d1a', fg: '#6ac06a', label: 'WFH' },
+  homeOff:    { bg: '#171f17', fg: '#4a8a4a', label: 'Home, not working' },
+  travel:     { bg: '#3d3000', fg: '#f0c040', label: 'Travel day' },
+  workAbroad: { bg: '#3d1a00', fg: '#f08030', label: 'Working abroad' },
+  abroad:     { bg: '#2d1500', fg: '#c07030', label: 'Abroad, not working' },
+  bankHol:    { bg: '#2d2d00', fg: '#d0c060', label: 'Bank holiday' },
+  greyOff:    { bg: '#1a1a1a', fg: '#555',    label: '' },
+};
+
+// ─── Schedule data ──────────────────────────────────────────────────────────
+// Format: [month, day, dow, type, note]
+const D = [
+  // ── May 2026 ──
+  ['May',  1,'Fri','bankHol','Early May Bank Holiday'],
+  ['May',  2,'Sat','homeOff',''],
+  ['May',  3,'Sun','homeOff',''],
+  ['May',  4,'Mon','office',''],
+  ['May',  5,'Tue','office',''],
+  ['May',  6,'Wed','wfh',''],
+  ['May',  7,'Thu','office',''],
+  ['May',  8,'Fri','wfh',''],
+  ['May',  9,'Sat','homeOff',''],
+  ['May', 10,'Sun','homeOff',''],
+  ['May', 11,'Mon','wfh',''],
+  ['May', 12,'Tue','office',''],
+  ['May', 13,'Wed','office',''],
+  ['May', 14,'Thu','wfh',''],
+  ['May', 15,'Fri','office',''],
+  ['May', 16,'Sat','homeOff',''],
+  ['May', 17,'Sun','homeOff',''],
+  ['May', 18,'Mon','office',''],
+  ['May', 19,'Tue','office',''],
+  ['May', 20,'Wed','wfh',''],
+  ['May', 21,'Thu','office',''],
+  ['May', 22,'Fri','wfh',''],
+  ['May', 23,'Sat','homeOff',''],
+  ['May', 24,'Sun','homeOff',''],
+  ['May', 25,'Mon','bankHol','Spring Bank Holiday'],
+  ['May', 26,'Tue','wfh',''],
+  ['May', 27,'Wed','office',''],
+  ['May', 28,'Thu','office',''],
+  ['May', 29,'Fri','wfh',''],
+  ['May', 30,'Sat','homeOff',''],
+  ['May', 31,'Sun','homeOff',''],
+  // ── June 2026 ──
+  ['Jun',  1,'Mon','office',''],
+  ['Jun',  2,'Tue','office',''],
+  ['Jun',  3,'Wed','travel','Train to Amsterdam'],
+  ['Jun',  4,'Thu','workAbroad','Amsterdam'],
+  ['Jun',  5,'Fri','workAbroad','Amsterdam'],
+  ['Jun',  6,'Sat','abroad','Weekend NL'],
+  ['Jun',  7,'Sun','abroad','Weekend NL'],
+  ['Jun',  8,'Mon','travel','Return London'],
+  ['Jun',  9,'Tue','wfh',''],
+  ['Jun', 10,'Wed','office',''],
+  ['Jun', 11,'Thu','office',''],
+  ['Jun', 12,'Fri','wfh',''],
+  ['Jun', 13,'Sat','homeOff',''],
+  ['Jun', 14,'Sun','homeOff',''],
+  ['Jun', 15,'Mon','office',''],
+  ['Jun', 16,'Tue','office',''],
+  ['Jun', 17,'Wed','wfh',''],
+  ['Jun', 18,'Thu','office',''],
+  ['Jun', 19,'Fri','office',''],
+  ['Jun', 20,'Sat','homeOff',''],
+  ['Jun', 21,'Sun','homeOff',''],
+  ['Jun', 22,'Mon','wfh',''],
+  ['Jun', 23,'Tue','office',''],
+  ['Jun', 24,'Wed','office',''],
+  ['Jun', 25,'Thu','travel','Flight to NYC'],
+  ['Jun', 26,'Fri','workAbroad','NYC'],
+  ['Jun', 27,'Sat','abroad','NYC Weekend'],
+  ['Jun', 28,'Sun','abroad','NYC Weekend'],
+  ['Jun', 29,'Mon','workAbroad','NYC'],
+  ['Jun', 30,'Tue','travel','Return London'],
+  // ── July 2026 ──
+  ['Jul',  1,'Wed','wfh',''],
+  ['Jul',  2,'Thu','office',''],
+  ['Jul',  3,'Fri','wfh',''],
+  ['Jul',  4,'Sat','homeOff',''],
+  ['Jul',  5,'Sun','homeOff',''],
+  ['Jul',  6,'Mon','office',''],
+  ['Jul',  7,'Tue','office',''],
+  ['Jul',  8,'Wed','wfh',''],
+  ['Jul',  9,'Thu','office',''],
+  ['Jul', 10,'Fri','wfh',''],
+  ['Jul', 11,'Sat','homeOff',''],
+  ['Jul', 12,'Sun','homeOff',''],
+  ['Jul', 13,'Mon','wfh',''],
+  ['Jul', 14,'Tue','office',''],
+  ['Jul', 15,'Wed','office',''],
+  ['Jul', 16,'Thu','wfh',''],
+  ['Jul', 17,'Fri','wfh',''],
+  ['Jul', 18,'Sat','homeOff',''],
+  ['Jul', 19,'Sun','homeOff',''],
+  ['Jul', 20,'Mon','office',''],
+  ['Jul', 21,'Tue','wfh',''],
+  ['Jul', 22,'Wed','office',''],
+  ['Jul', 23,'Thu','office',''],
+  ['Jul', 24,'Fri','wfh',''],
+  ['Jul', 25,'Sat','homeOff',''],
+  ['Jul', 26,'Sun','homeOff',''],
+  ['Jul', 27,'Mon','wfh',''],
+  ['Jul', 28,'Tue','office',''],
+  ['Jul', 29,'Wed','office',''],
+  ['Jul', 30,'Thu','wfh',''],
+  ['Jul', 31,'Fri','wfh',''],
+  // ── August 2026 ──
+  ['Aug',  1,'Sat','homeOff',''],
+  ['Aug',  2,'Sun','homeOff',''],
+  ['Aug',  3,'Mon','office',''],
+  ['Aug',  4,'Tue','office',''],
+  ['Aug',  5,'Wed','wfh',''],
+  ['Aug',  6,'Thu','office',''],
+  ['Aug',  7,'Fri','wfh',''],
+  ['Aug',  8,'Sat','homeOff',''],
+  ['Aug',  9,'Sun','homeOff',''],
+  ['Aug', 10,'Mon','wfh',''],
+  ['Aug', 11,'Tue','office',''],
+  ['Aug', 12,'Wed','office',''],
+  ['Aug', 13,'Thu','wfh',''],
+  ['Aug', 14,'Fri','office',''],
+  ['Aug', 15,'Sat','homeOff',''],
+  ['Aug', 16,'Sun','homeOff',''],
+  ['Aug', 17,'Mon','office',''],
+  ['Aug', 18,'Tue','wfh',''],
+  ['Aug', 19,'Wed','office',''],
+  ['Aug', 20,'Thu','office',''],
+  ['Aug', 21,'Fri','wfh',''],
+  ['Aug', 22,'Sat','homeOff',''],
+  ['Aug', 23,'Sun','homeOff',''],
+  ['Aug', 24,'Mon','office',''],
+  ['Aug', 25,'Tue','wfh',''],
+  ['Aug', 26,'Wed','office',''],
+  ['Aug', 27,'Thu','office',''],
+  ['Aug', 28,'Fri','wfh',''],
+  ['Aug', 29,'Sat','homeOff',''],
+  ['Aug', 30,'Sun','homeOff',''],
+  ['Aug', 31,'Mon','bankHol','August Bank Holiday'],
+];
+
+// ─── Bookings ───────────────────────────────────────────────────────────────
+const BOOKINGS = [
+  {
+    id: 'booking-jun-3',
+    schedKey: 'Jun-3',
+    date: 'Wed 3 Jun 2026',
+    from: 'London St Pancras',
+    to: 'Amsterdam Centraal',
+    depart: '11:04', arrive: '16:20',
+    duration: '4h 16m',
+    changes: 'Direct',
+    operator: 'Eurostar',
+    ticket: 'Standard Premier',
+    mode: 'train',
+    dir: 'international',
+    ref: 'E3P-7742',
+    seats: 'Coach 4 · Seat 22A',
+    physical: false,
+    collectRef: '',
+  },
+  {
+    id: 'booking-jun-8',
+    schedKey: 'Jun-8',
+    date: 'Mon 8 Jun 2026',
+    from: 'Amsterdam Centraal',
+    to: 'London St Pancras',
+    depart: '17:56', arrive: '18:30',
+    duration: '3h 34m',
+    changes: 'Direct',
+    operator: 'Eurostar',
+    ticket: 'Standard Premier',
+    mode: 'train',
+    dir: 'international',
+    ref: 'E3P-7743',
+    seats: 'Coach 6 · Seat 14B',
+    physical: true,
+    collectRef: 'STP-8812',
+  },
+];
+
+// Build BMAP lookup
+const BMAP = {};
+BOOKINGS.forEach(b => { BMAP[b.schedKey] = b; });
+
+// ─── Static todos ────────────────────────────────────────────────────────────
+const STATIC_TODOS = [
+  'Prep for Amsterdam client presentation',
+  'Book team lunch — confirm date with manager',
+  'Update project tracker before EOD Friday',
+  'Review Q2 expenses',
+];
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
+const MONTH_NUMS = { Jan:0, Feb:1, Mar:2, Apr:3, May:4, Jun:5, Jul:6, Aug:7, Sep:8, Oct:9, Nov:10, Dec:11 };
+const MONTH_DAYS = { Jan:31, Feb:28, Mar:31, Apr:30, May:31, Jun:30, Jul:31, Aug:31, Sep:30, Oct:31, Nov:30, Dec:31 };
+
+function schedKey(month, day) { return `${month}-${day}`; }
+
+function dateOf(month, day) {
+  const yr = 2026;
+  return new Date(yr, MONTH_NUMS[month], day);
+}
+
+function isToday(month, day) {
+  const now = new Date();
+  return now.getFullYear() === 2026 && now.getMonth() === MONTH_NUMS[month] && now.getDate() === day;
+}
+function isPast(month, day) {
+  return dateOf(month, day) < new Date(new Date().setHours(0,0,0,0));
+}
+function isWithin2Months(month, day) {
+  const now = new Date(new Date().setHours(0,0,0,0));
+  const then = dateOf(month, day);
+  const twoMonths = new Date(now);
+  twoMonths.setMonth(twoMonths.getMonth() + 2);
+  return then >= now && then <= twoMonths;
+}
+
+function trainSVG() {
+  return `<svg class="icon-train" width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M12 2C8 2 4 2.5 4 7v9c0 2.2 1.8 4 4 4l-2 2h12l-2-2c2.2 0 4-1.8 4-4V7c0-4.5-4-5-8-5zm0 2c3.5 0 6 .5 6 3v1H6V7c0-2.5 2.5-3 6-3zM8 12a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3zm8 0a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3z"/>
+  </svg>`;
+}
+function planeSVG() { return `<span class="icon-plane">&#9992;</span>`; }
+function dirArrow(dir) {
+  if (dir === 'north') return '&#9650;';
+  if (dir === 'south') return '&#9660;';
+  return '&#9654;'; // international
+}
+
+// ─── Build unbooked travel set ───────────────────────────────────────────────
+const UNBOOKED_TRAVEL = [];
+D.forEach(([m, d, , type]) => {
+  if (type === 'travel' && !BMAP[schedKey(m, d)] && isWithin2Months(m, d)) {
+    UNBOOKED_TRAVEL.push({ month: m, day: d });
+  }
+});
+
+// ─── Legend ─────────────────────────────────────────────────────────────────
+function renderLegend() {
+  const el = document.getElementById('legend');
+  let html = '';
+  Object.entries(T).forEach(([k, v]) => {
+    if (!v.label) return;
+    html += `<div class="leg-item"><div class="leg-swatch" style="background:${v.bg};border:1px solid ${v.fg}33"></div><span>${v.label}</span></div>`;
+  });
+  html += `<div class="leg-icon">${trainSVG()} &#9654; International</div>`;
+  html += `<div class="leg-icon">${trainSVG()} &#9650; Northbound</div>`;
+  html += `<div class="leg-icon">${planeSVG()} &#9650; Flight</div>`;
+  html += `<div class="leg-icon" style="color:#ff4444">! unbooked travel</div>`;
+  html += `<div class="leg-icon" style="color:#ff6666;font-size:10px">! ${trainSVG()} physical ticket</div>`;
+  el.innerHTML = html;
+}
+
+// ─── Badge HTML ──────────────────────────────────────────────────────────────
+function badgeHTML(month, day, cls) {
+  const key = schedKey(month, day);
+  const booking = BMAP[key];
+  const isUnbookedTravel = UNBOOKED_TRAVEL.some(u => u.month === month && u.day === day);
+  if (isUnbookedTravel) {
+    return `<div class="d-tile-badge unbooked ${cls||''}">!</div>`;
+  }
+  if (booking) {
+    const icon = booking.mode === 'train' ? trainSVG() : planeSVG();
+    const arrow = dirArrow(booking.dir);
+    const prefix = booking.physical ? '<span style="color:#ff4444">!</span> ' : '';
+    return `<div class="d-tile-badge booked ${cls||''}">${prefix}${icon}<span>${arrow}</span></div>`;
+  }
+  return '';
+}
+function mBadgeHTML(month, day) {
+  return badgeHTML(month, day, '');
+}
+
+// ─── Mobile view ────────────────────────────────────────────────────────────
+function renderMobile() {
+  const el = document.getElementById('mobile-view');
+  let html = '';
+  let curMonth = null;
+
+  D.forEach(([m, d, dow, type, note]) => {
+    const t = T[type] || T.greyOff;
+    const key = schedKey(m, d);
+    const booking = BMAP[key];
+    const todayClass = isToday(m, d) ? ' today" id="today-anchor' : '';
+    const pastClass = isPast(m, d) ? ' past' : '';
+    const isUnbookedTravel = UNBOOKED_TRAVEL.some(u => u.month === m && u.day === d);
+    const hasBadge = booking || isUnbookedTravel;
+
+    if (m !== curMonth) {
+      html += `<div class="month-label-m">${m} 2026</div>`;
+      curMonth = m;
+    }
+
+    const badgeEl = hasBadge ? (() => {
+      if (isUnbookedTravel) {
+        return `<div class="m-tile-badge unbooked">!</div>`;
+      }
+      const icon = booking.mode === 'train' ? trainSVG() : planeSVG();
+      const arrow = dirArrow(booking.dir);
+      const prefix = booking.physical ? '<span style="color:#ff4444">!</span> ' : '';
+      return `<div class="m-tile-badge booked">${prefix}${icon}<span>${arrow}</span></div>`;
+    })() : '';
+
+    let expandContent = '';
+    if (booking) {
+      expandContent += `<div class="m-tile-expand-note">${booking.operator} &middot; ${booking.from} &rarr; ${booking.to} &middot; ${booking.depart}&#8202;&ndash;&#8202;${booking.arrive}</div>`;
+    }
+    if (note) {
+      expandContent += `<div class="m-tile-expand-note">${note}</div>`;
+    }
+
+    const actions = [];
+    if (booking) actions.push(`<button class="m-action-btn" onclick="scrollToBooking('${booking.id}')">View booking</button>`);
+    if (booking) actions.push(`<button class="m-action-btn" onclick="copyDetails('${key}')">Copy details</button>`);
+    expandContent += `<div class="m-tile-actions">${actions.join('')}</div>`;
+
+    html += `<div class="m-tile${todayClass}${pastClass}" style="background:${t.bg};color:${t.fg}" onclick="toggleTile(this)">
+      <div class="m-tile-date" style="background:${t.bg}">
+        <div class="m-tile-dow">${dow}</div>
+        <div class="m-tile-day">${d}</div>
+      </div>
+      ${badgeEl}
+      <div class="m-tile-note">${note || type}</div>
+      <div class="m-tile-expand">${expandContent}</div>
+    </div>`;
+  });
+
+  el.innerHTML = html;
+}
+
+// ─── Desktop view ────────────────────────────────────────────────────────────
+function renderDesktop() {
+  const el = document.getElementById('desktop-view');
+  const months = [...new Set(D.map(r => r[0]))];
+  const DOW_ORDER = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+
+  // Group D by month-day
+  const DMAP = {};
+  D.forEach(row => { DMAP[schedKey(row[0], row[1])] = row; });
+
+  let html = '<div class="months-row">';
+  months.forEach(month => {
+    const monthNum = MONTH_NUMS[month];
+    const totalDays = MONTH_DAYS[month];
+    // Find day of week of the 1st
+    const firstDate = new Date(2026, monthNum, 1);
+    const firstDow = (firstDate.getDay() + 6) % 7; // 0=Mon
+
+    let grid = '<div class="cal-grid">';
+    DOW_ORDER.forEach(d => { grid += `<div class="cal-dow-header">${d}</div>`; });
+    // empty cells before first
+    for (let i = 0; i < firstDow; i++) grid += '<div class="cal-empty"></div>';
+
+    for (let d = 1; d <= totalDays; d++) {
+      const key = schedKey(month, d);
+      const row = DMAP[key];
+      const type = row ? row[3] : 'greyOff';
+      const note = row ? row[4] : '';
+      const t = T[type] || T.greyOff;
+      const todayClass = isToday(month, d) ? ' today" id="today-anchor-d' : '';
+      const pastClass = isPast(month, d) ? ' past' : '';
+      const badge = badgeHTML(month, d, '');
+
+      grid += `<div class="d-tile${todayClass}${pastClass}" style="background:${t.bg};color:${t.fg}" onclick="handleDesktopClick('${key}')">
+        <div class="d-tile-day">${d}</div>
+        <div class="d-tile-note">${note || (type !== 'greyOff' ? type : '')}</div>
+        ${badge}
+      </div>`;
+    }
+    grid += '</div>';
+    html += `<div class="month-block"><div class="month-label-d">${month} 2026</div>${grid}</div>`;
+  });
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+// ─── Warnings banner ─────────────────────────────────────────────────────────
+function renderWarnings() {
+  const el = document.getElementById('warnings');
+  if (UNBOOKED_TRAVEL.length === 0) return;
+  el.style.display = 'block';
+  el.innerHTML = UNBOOKED_TRAVEL.map(u => {
+    const row = D.find(r => r[0] === u.month && r[1] === u.day);
+    const label = row ? `${row[2]} ${u.day} ${u.month}` : `${u.day} ${u.month}`;
+    return `<div class="warn-banner">&#9888; Unbooked travel &mdash; <strong>${label}</strong>: ${row && row[4] ? row[4] : 'travel day'}</div>`;
+  }).join('');
+}
+
+// ─── Todo list ───────────────────────────────────────────────────────────────
+function renderTodos() {
+  const el = document.getElementById('todos-list');
+  const autoTodos = UNBOOKED_TRAVEL.map(u => {
+    const row = D.find(r => r[0] === u.month && r[1] === u.day);
+    const label = row ? `${row[2]} ${u.day} ${u.month}` : `${u.day} ${u.month}`;
+    return { text: `⚠️ Book travel — ${label}`, urgent: true };
+  });
+  const staticTodos = STATIC_TODOS.map(t => ({ text: t, urgent: false }));
+  const all = [...autoTodos, ...staticTodos];
+
+  el.innerHTML = all.map((item, i) => `
+    <div class="todo-item${item.urgent ? ' urgent' : ''}" id="todo-${i}">
+      <input type="checkbox" class="todo-cb" onchange="toggleTodo(${i})">
+      <span class="todo-text">${item.text}</span>
+    </div>`).join('');
+}
+
+function toggleTodo(i) {
+  document.getElementById(`todo-${i}`).classList.toggle('done');
+}
+
+// ─── Booking cards ────────────────────────────────────────────────────────────
+function renderBookings() {
+  const el = document.getElementById('bookings-list');
+  if (BOOKINGS.length === 0) {
+    el.innerHTML = '<div style="color:#444;font-size:12px">No confirmed bookings.</div>';
+    return;
+  }
+  el.innerHTML = BOOKINGS.map(b => {
+    const icon = b.mode === 'train' ? trainSVG() : planeSVG();
+    const physicalBadge = b.physical ? `<span class="bc-physical-badge">! Physical ticket</span>` : '';
+    const physicalWarn = b.physical ? `<div class="bc-warn">&#9888; Physical ticket &mdash; collect at station before travel &middot; Ref: <strong>${b.collectRef}</strong></div>` : '';
+    const arrow = dirArrow(b.dir);
+
+    return `<div class="booking-card" id="${b.id}">
+      <div class="bc-header">
+        <div>
+          <span class="bc-route">${icon} ${arrow} ${b.from} &rarr; ${b.to}</span>
+          ${physicalBadge}
+        </div>
+        <div class="bc-date">${b.date}</div>
+      </div>
+      <div class="bc-grid">
+        <div class="bc-row"><span class="bc-label">Departs</span><span class="bc-val">${b.depart}</span></div>
+        <div class="bc-row"><span class="bc-label">Arrives</span><span class="bc-val">${b.arrive}</span></div>
+        <div class="bc-row"><span class="bc-label">Duration</span><span class="bc-val">${b.duration}</span></div>
+        <div class="bc-row"><span class="bc-label">Changes</span><span class="bc-val">${b.changes}</span></div>
+        <div class="bc-row"><span class="bc-label">Operator</span><span class="bc-val">${b.operator}</span></div>
+        <div class="bc-row"><span class="bc-label">Ticket</span><span class="bc-val">${b.ticket}</span></div>
+        <div class="bc-row"><span class="bc-label">Seats</span><span class="bc-val">${b.seats}</span></div>
+      </div>
+      <div class="bc-ref">Ref: <span>${b.ref}</span></div>
+      ${physicalWarn}
+    </div>`;
+  }).join('');
+}
+
+// ─── Interactions ─────────────────────────────────────────────────────────────
+function setView(v) {
+  document.getElementById('mobile-view').style.display = v === 'mobile' ? 'flex' : 'none';
+  document.getElementById('desktop-view').style.display = v === 'desktop' ? 'block' : 'none';
+  document.getElementById('btn-mobile').classList.toggle('active', v === 'mobile');
+  document.getElementById('btn-desktop').classList.toggle('active', v === 'desktop');
+}
+
+function toggleTile(el) {
+  el.classList.toggle('expanded');
+}
+
+function handleDesktopClick(key) {
+  const booking = BMAP[key];
+  if (booking) scrollToBooking(booking.id);
+}
+
+function scrollToBooking(id) {
+  const card = document.getElementById(id);
+  if (!card) return;
+  card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  card.classList.add('highlight');
+  setTimeout(() => card.classList.remove('highlight'), 2000);
+}
+
+function copyDetails(key) {
+  const booking = BMAP[key];
+  if (!booking) return;
+  const text = `${booking.date} | ${booking.from} → ${booking.to} | ${booking.depart}–${booking.arrive} | ${booking.operator} | Ref: ${booking.ref}`;
+  navigator.clipboard.writeText(text).catch(() => {});
+}
+
+// ─── Scroll to today ──────────────────────────────────────────────────────────
+function scrollToToday() {
+  const anchor = document.getElementById('today-anchor') || document.getElementById('today-anchor-d');
+  if (anchor) {
+    setTimeout(() => anchor.scrollIntoView({ behavior: 'smooth', block: 'center' }), 300);
+  }
+}
+
+// ─── Init ────────────────────────────────────────────────────────────────────
+renderLegend();
+renderWarnings();
+renderMobile();
+renderDesktop();
+renderTodos();
+renderBookings();
+scrollToToday();
+</script>
+</body>
+</html>
